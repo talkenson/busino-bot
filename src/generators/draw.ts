@@ -1,6 +1,9 @@
 import { createSpeeds } from "./horse_sequence.ts";
 import { renderFramesToGIF } from "./renderFramesToGIF.ts";
-import { createCanvas } from "canvas";
+import { createCanvas, registerFont } from "canvas";
+import fontPath from "./inconsolata.ttf" assert { type: "file" };
+
+registerFont(fontPath, { family: "Inconsolata" });
 
 const WIDTH = 500;
 const ITER_COUNT = 100;
@@ -71,7 +74,7 @@ export const drawHorses = (series: number[][]) => {
   const horses = Array.from(
     { length: series.length },
     (_, i) =>
-      new Horse(START_X, START_Y + Y_PADDING * i, getColor(i) ?? "#0a0a0a"),
+      new Horse(START_X, START_Y + Y_PADDING * i, getColor(i) ?? "#0a0a0a")
   );
 
   let currentPlace = 1;
@@ -114,7 +117,7 @@ export const drawHorses = (series: number[][]) => {
       ctx.fillText(
         `${distToRender}%`,
         WIDTH - MENU_WIDTH - START_X + 30,
-        y + 5,
+        y + 5
       );
 
       const velocity = series[horseId].at(frameId) ?? 0;

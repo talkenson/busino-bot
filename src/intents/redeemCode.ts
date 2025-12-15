@@ -39,7 +39,7 @@ export default (bot: Bot) => {
   bot.command("redeem", async (ctx) => {
     if (ctx.chat.type !== "private") {
       return await ctx.reply(
-        "Получить бесплатную крутку ты можешь отправив мне эту команду в личные сообщения 😄",
+        "Получить бесплатную крутку ты можешь отправив мне эту команду в личные сообщения 😄"
       );
     }
 
@@ -57,7 +57,7 @@ export default (bot: Bot) => {
       (state): Code =>
         state.value ?? {
           active: false,
-        },
+        }
     );
 
     if (code.active) {
@@ -71,7 +71,7 @@ export default (bot: Bot) => {
 
       if (!userState) {
         return await ctx.reply(
-          "Пока ты не сделаешь хотя одну крутку - ты не сможешь пользоваться чужими кодами 🥲",
+          "Пока ты не сделаешь хотя одну крутку - ты не сможешь пользоваться чужими кодами 🥲"
         );
       }
 
@@ -82,7 +82,7 @@ export default (bot: Bot) => {
           locales.freespinRedeemedQuote(),
           {
             parse_mode: "HTML",
-          },
+          }
         );
       }
 
@@ -99,7 +99,7 @@ export default (bot: Bot) => {
         .commit();
 
       return await ctx.reply(
-        `Вот это скорость! У вас теперь есть еще одна крутка (и ${DICE_COST} монет), она выйдет почти бесплатная, и она будет действовать до полуночи по UTC`,
+        `Вот это скорость! У вас теперь есть еще одна крутка, и она будет действовать до полуночи`
       );
     }
 
@@ -120,7 +120,7 @@ export const createFreespinCode = async (userId: number) => {
 
 export const linkFreespinCode = async (
   code: string,
-  message: Message.TextMessage,
+  message: Message.TextMessage
 ) => {
   const codeState = await kv
     .get<Code>(getCodeKey(code))

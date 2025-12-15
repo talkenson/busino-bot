@@ -1,4 +1,4 @@
-const GAS_DEFAULT = 0.0285; // 2.85%
+const GAS_DEFAULT = 0.05; // 2.85%
 // 9.999999999999876 0.285
 
 const roundValue = (x: number) => {

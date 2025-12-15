@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@deno/kv": "^0.8.4",
-    "canvas": "^3.0.0-rc3",
+    "canvas": "^3.2.0",
     "grammy": "^1.33.0",
     "imagescript": "^1.3.0",
     "luxon": "^3.5.0",

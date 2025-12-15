@@ -1,6 +1,6 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1 AS base
+FROM oven/bun:1-debian AS base
 WORKDIR /usr/src/app
 
 # install dependencies into temp directory
@@ -33,6 +33,8 @@ COPY --from=prerelease /usr/src/app/index.ts .
 COPY --from=prerelease /usr/src/app/constants.ts .
 COPY --from=prerelease /usr/src/app/src src
 COPY --from=prerelease /usr/src/app/package.json .
+
+ENV FILECONFIG_PATH=/etc/fonts
 
 # run the app
 USER bun
