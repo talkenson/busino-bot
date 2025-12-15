@@ -1,7 +1,7 @@
-import { v4, validate as uuidValidate } from "uuid";
+import { validate as uuidValidate } from "uuid";
 import { Bot } from "grammy";
 import { kv } from "../kv.ts";
-import { getUserKey } from "../helpers.ts";
+import { getCurrentDay, getUserKey } from "../helpers.ts";
 import type { UserState } from "../types.ts";
 import { ADMINS, CURRENT_KEY, DICE_COST } from "../../constants.ts";
 import type { Message } from "grammy/types";
@@ -30,7 +30,7 @@ export default (bot: Bot) => {
 
     const code = await kv.set(getCodeKey(codeText), {
       active: true,
-      issuedBy: userId,
+      issuedBy: 0,
     } as Code);
 
     return await ctx.reply(codeText);
@@ -62,7 +62,8 @@ export default (bot: Bot) => {
 
     if (code.active) {
       if (code.issuedBy === userId) {
-        return await ctx.reply("Упс, а вот свой код обналичить нельзя 🥲");
+        ctx.reply("Упс, а вот свой код обналичить нельзя 🥲");
+        return;
       }
 
       const userState = await kv
@@ -71,7 +72,7 @@ export default (bot: Bot) => {
 
       if (!userState) {
         return await ctx.reply(
-          "Пока ты не сделаешь хотя одну крутку - ты не сможешь пользоваться чужими кодами 🥲"
+          "Пока ты не сделаешь хотя бы одну крутку - ты не сможешь пользоваться чужими кодами 🥲"
         );
       }
 
@@ -86,9 +87,15 @@ export default (bot: Bot) => {
         );
       }
 
+      const currentDay = getCurrentDay();
+
+      const isCurrentDay = currentDay.toMillis() === userState.lastDayUtc;
+
       const nextUserState: UserState = {
         ...userState,
-        extraAttempts: (userState?.extraAttempts ?? 0) + 1,
+        extraAttempts: isCurrentDay ? (userState?.extraAttempts ?? 0) + 1 : 1,
+        lastDayUtc: isCurrentDay ? userState.lastDayUtc : currentDay.toMillis(), // if today then today or today
+        attemptCount: isCurrentDay ? userState.attemptCount : 0,
         // coins: userState.coins + DICE_COST,
       };
 

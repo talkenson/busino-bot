@@ -1,5 +1,7 @@
-const GAS_DEFAULT = 0.05; // 2.85%
+const GAS_DEFAULT = 0.0285; // 2.85%
 // 9.999999999999876 0.285
+
+const GAS_MODIFIER = Math.SQRT2;
 
 const roundValue = (x: number) => {
   return Math.round(x);
@@ -14,9 +16,9 @@ const gasFunction = (x: number) => {
 
 export const getGasTax = (tradeVolume: number) => {
   if (tradeVolume < 10) {
-    return roundValue(gasFunction(tradeVolume));
+    return roundValue(gasFunction(tradeVolume) * GAS_MODIFIER);
   }
-  return roundValue(tradeVolume * GAS_DEFAULT);
+  return roundValue(tradeVolume * GAS_DEFAULT * GAS_MODIFIER);
 };
 
 if (import.meta.main) {

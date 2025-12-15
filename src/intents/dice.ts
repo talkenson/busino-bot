@@ -3,6 +3,7 @@ import { ATTEMPTS_LIMIT, CASINO_DICE, DICE_COST } from "../../constants.ts";
 import { getGasTax } from "../gasTax.ts";
 import {
   DateTime,
+  getCurrentDay,
   getFreespinCode,
   getMaxFrequency,
   getPrize,
@@ -47,12 +48,7 @@ export default (bot: Bot) =>
             ),
         );
 
-      const currentDay = DateTime.now().setZone("UTC+7").set({
-        hour: 0,
-        minute: 0,
-        second: 0,
-        millisecond: 0,
-      });
+      const currentDay = getCurrentDay();
 
       const isCurrentDay = currentDay.toMillis() === userState.lastDayUtc;
 
@@ -73,8 +69,11 @@ export default (bot: Bot) =>
         return;
       }
 
+      const isExtraAttempt =
+        isCurrentDay && userState.attemptCount >= ATTEMPTS_LIMIT;
+
       const gas = getGasTax(DICE_COST);
-      const fixedLoss = DICE_COST + gas;
+      const fixedLoss = isExtraAttempt ? gas + 2 : DICE_COST + gas; // 2 = service comission for every extra attempt
 
       if (userState.coins < fixedLoss) {
         await ctx.reply(locales.notEnoughCoins(fixedLoss), {
