@@ -14,6 +14,7 @@ import { kv } from "../kv.ts";
 import { locales } from "../locales.ts";
 import type { UserState } from "../types.ts";
 import { linkFreespinCode } from "./redeemCode.ts";
+import { isMoreRollsAvailable, plural } from "../utils.ts";
 
 export default (bot: Bot) =>
   bot.on(":dice", async (ctx) => {
@@ -104,7 +105,14 @@ export default (bot: Bot) =>
         : locales.lose(fixedLoss, prize);
       const yourBalance = locales.yourBalance(nextUserState.coins);
 
-      await ctx.reply([result, yourBalance].join("\n"), {
+      const moreRolls = isMoreRollsAvailable(nextUserState);
+
+      const attemptsLeft =
+        moreRolls > 0
+          ? `(у Вас ещё ${plural(moreRolls, ["попытка", "попытки", "попыток"], true)})`
+          : "";
+
+      await ctx.reply([result, yourBalance, attemptsLeft].join("\n"), {
         reply_to_message_id: ctx.update.message?.message_id,
         parse_mode: "HTML",
       });

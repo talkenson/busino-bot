@@ -1,3 +1,7 @@
+import { ATTEMPTS_LIMIT } from "../constants";
+import { decorateName } from "./nameDecorators";
+import type { UserState } from "./types";
+
 export const plural = (
   number: number,
   titles: string[],
@@ -22,3 +26,18 @@ export const getSafeNumber = (x: number): { safe: boolean; value: number } => {
 
 export const getRandomFromArray = <Type extends unknown>(arr: Type[]) =>
   arr[Math.floor(Math.random() * arr.length)];
+
+export const isMoreRollsAvailable = (user: UserState) => {
+  const total = ATTEMPTS_LIMIT + (user.extraAttempts || 0);
+  return Math.max(0, total - user.attemptCount);
+};
+
+export const formatUserToPlace = (user: UserState) => {
+  const moreRolls = isMoreRollsAvailable(user);
+  return (
+    `${decorateName(user.displayName, user.coins)} - ${user.coins}` +
+    (moreRolls > 0
+      ? ` (ещё ${plural(moreRolls, ["попытка", "попытки", "попыток"], true)})`
+      : "")
+  );
+};

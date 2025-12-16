@@ -9,6 +9,12 @@ import horses from "./src/intents/horses.ts";
 import { getUserStateSafe } from "./src/helpers.ts";
 import { kv } from "./src/kv.ts";
 import type { UserState } from "./src/types.ts";
+import {
+  formatUserToPlace,
+  isMoreRollsAvailable,
+  plural,
+} from "./src/utils.ts";
+import { decorateName } from "./src/nameDecorators.ts";
 
 bot.command("__debug", async (ctx) => {
   await ctx.reply(
@@ -45,13 +51,31 @@ bot.command("top", async (ctx) => {
     usersTop.push(user.value);
   }
 
-  usersTop.sort((a, b) => b.coins - a.coins);
+  usersTop.sort((a, b) => b.coins - a.coins); // sort by coins desc
 
-  const usersTopStrings = usersTop
-    .slice(0, 20)
-    .map((user, index) => `${index + 1}. ${user.displayName} - ${user.coins}`);
+  let place = 0;
+  let lastBalance = usersTop[0].coins + 1;
+  let usersByPlace: [number, UserState[]][] = [];
+  for (let i = 0; i < usersTop.length && place < 21; i++) {
+    const user = usersTop[i];
+    if (user.coins < lastBalance) {
+      place++;
+      lastBalance = user.coins;
+      usersByPlace.push([usersByPlace.length + 1, []]);
+    }
+    usersByPlace[place - 1][1].push(user);
+  }
 
-  await ctx.reply([locales.topPlayers(), ...usersTopStrings].join("\n"), {
+  console.log(usersByPlace);
+
+  const topStrings = usersByPlace.map(([place, users]) => {
+    if (users.length === 1) {
+      return `${place}. ${formatUserToPlace(users[0])}`;
+    }
+    return `${place}.\n  ${users.map((user) => formatUserToPlace(user)).join("\n  ")}`;
+  });
+
+  await ctx.reply([locales.topPlayers(), ...topStrings].join("\n"), {
     reply_to_message_id: ctx.update.message?.message_id,
   });
 });
