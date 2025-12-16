@@ -1,5 +1,5 @@
 import { webhookCallback } from "grammy";
-import { CURRENT_KEY, IS_PRODUCTION } from "./constants.ts";
+import { ADMINS, CURRENT_KEY, IS_PRODUCTION } from "./constants.ts";
 import { logStart } from "./src/general.ts";
 import { bot } from "./src/bot.ts";
 import { locales } from "./src/locales.ts";
@@ -7,7 +7,7 @@ import dice from "./src/intents/dice.ts";
 import redeemCode from "./src/intents/redeemCode.ts";
 import horses from "./src/intents/horses.ts";
 import { getUserStateSafe } from "./src/helpers.ts";
-import { kv } from "./src/kv.ts";
+import { collectList, kv } from "./src/kv.ts";
 import type { UserState } from "./src/types.ts";
 import {
   formatUserToPlace,
@@ -42,21 +42,61 @@ redeemCode(bot);
 horses(bot);
 // init end
 
+bot.command("rename", async (ctx) => {
+  const id = ctx.from?.id;
+
+  if (!id || !ADMINS.includes(id.toString())) return;
+
+  const [oldName, newName] = ctx.message?.text?.split(" ", 3).slice(1) || [];
+  if (!oldName || !newName) {
+    await ctx.reply("... <old_name> <new_name/* to clear>");
+    return;
+  }
+
+  if (newName === "*") {
+    await kv.delete(["renames", oldName]);
+    await ctx.reply(`Renaming for ${oldName} cleared`);
+    return;
+  }
+
+  const key = ["renames", oldName];
+  await kv.set(key, newName);
+
+  await ctx.reply(`Renamed ${oldName} to ${newName}`);
+});
+
+bot.command("renames", async (ctx) => {
+  const id = ctx.from?.id;
+
+  if (!id || !ADMINS.includes(id.toString())) return;
+
+  const renames = await collectList(["renames"]);
+
+  await ctx.reply(`${JSON.stringify(renames, null, 2)}`);
+});
+
 bot.command("top", async (ctx) => {
   const users = await kv.list<UserState>({ prefix: [CURRENT_KEY] });
 
   const usersTop: UserState[] = [];
 
+  const renames = Object.fromEntries(
+    (await collectList(["renames"])).map(({ key, value }) => [key[1], value]),
+  );
+
   for await (const user of users) {
-    usersTop.push(user.value);
+    usersTop.push({
+      ...user.value,
+      displayName: renames[user.value.displayName] || user.value.displayName,
+    });
   }
 
-  usersTop.sort((a, b) => b.coins - a.coins); // sort by coins desc
+  usersTop.sort((a, b) => b.coins - a.coins);
 
   let place = 0;
   let lastBalance = usersTop[0].coins + 1;
   let usersByPlace: [number, UserState[]][] = [];
-  for (let i = 0; i < usersTop.length && place < 21; i++) {
+  for (let i = 0; i < usersTop.length && place < 20; i++) {
     const user = usersTop[i];
     if (user.coins < lastBalance) {
       place++;
@@ -72,7 +112,7 @@ bot.command("top", async (ctx) => {
     if (users.length === 1) {
       return `${place}. ${formatUserToPlace(users[0])}`;
     }
-    return `${place}.\n  ${users.map((user) => formatUserToPlace(user)).join("\n  ")}`;
+    return `${place}.\n  - ${users.map((user) => formatUserToPlace(user)).join("\n  - ")}`;
   });
 
   await ctx.reply([locales.topPlayers(), ...topStrings].join("\n"), {

@@ -1,4 +1,5 @@
 import { ATTEMPTS_LIMIT } from "../constants";
+import { getCurrentDay } from "./helpers";
 import { decorateName } from "./nameDecorators";
 import type { UserState } from "./types";
 
@@ -28,8 +29,9 @@ export const getRandomFromArray = <Type extends unknown>(arr: Type[]) =>
   arr[Math.floor(Math.random() * arr.length)];
 
 export const isMoreRollsAvailable = (user: UserState) => {
+  const isCurrentDay = getCurrentDay().toMillis() === user.lastDayUtc;
   const total = ATTEMPTS_LIMIT + (user.extraAttempts || 0);
-  return Math.max(0, total - user.attemptCount);
+  return Math.max(0, isCurrentDay ? total - user.attemptCount : ATTEMPTS_LIMIT);
 };
 
 export const formatUserToPlace = (user: UserState) => {
