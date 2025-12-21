@@ -141,22 +141,31 @@ export default (bot: Bot) =>
           ? `(у Вас ещё ${plural(moreRolls, ["попытка", "попытки", "попыток"], true)})`
           : "";
 
-      await ctx.reply([result, yourBalance, attemptsLeft].join("\n"), {
-        reply_to_message_id: ctx.update.message?.message_id,
-        parse_mode: "HTML",
-      });
+      try {
+        await ctx.reply([result, yourBalance, attemptsLeft].join("\n"), {
+          reply_to_message_id: ctx.update.message?.message_id,
+          parse_mode: "HTML",
+        });
+      } catch (error) {
+        console.error("error on reply user", userId);
+        return;
+      }
 
       const freespinCode = isNotPrivateChat && (await getFreespinCode(userId));
       const freespinCodeIntergration =
         freespinCode && locales.freespinQuote(freespinCode);
 
       if (freespinCode && freespinCodeIntergration) {
-        const reply = await ctx.reply(freespinCodeIntergration, {
-          reply_to_message_id: ctx.update.message?.message_id,
-          parse_mode: "HTML",
-        });
+        try {
+          const reply = await ctx.reply(freespinCodeIntergration, {
+            reply_to_message_id: ctx.update.message?.message_id,
+            parse_mode: "HTML",
+          });
 
-        linkFreespinCode(freespinCode, reply);
+          linkFreespinCode(freespinCode, reply);
+        } catch (error) {
+          console.error("error on reply user", userId);
+        }
       }
 
       await sendEvent({
@@ -174,5 +183,7 @@ export default (bot: Bot) =>
           attemptsCount,
         },
       });
+
+      return;
     }
   });

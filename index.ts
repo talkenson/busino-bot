@@ -111,6 +111,7 @@ bot.command("top", async (ctx) => {
         event_type: "achievement",
         payload: {
           type: "first_place",
+          balance: user.coins,
           chat_id: ctx.chat.id,
           user_id: user.id,
           createdAt: Date.now(),

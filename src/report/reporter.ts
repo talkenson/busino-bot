@@ -50,20 +50,18 @@ export class ClickHouseReporter {
     if (!this.isEnabled) return;
 
     try {
-      console.log(
-        await this.client.insert({
-          table: this.tableName,
-          values: [
-            {
-              event_type: event.event_type,
-              project: this.project,
-              params: event.params || {},
-              payload: event.payload,
-            },
-          ],
-          format: "JSONEachRow",
-        }),
-      );
+      await this.client.insert({
+        table: this.tableName,
+        values: [
+          {
+            event_type: event.event_type,
+            project: this.project,
+            params: event.params || {},
+            payload: event.payload,
+          },
+        ],
+        format: "JSONEachRow",
+      });
     } catch (error) {
       console.error("Failed to report event to ClickHouse:", error);
       // Здесь можно добавить логику повторной попытки или fallback
