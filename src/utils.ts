@@ -34,10 +34,13 @@ export const isMoreRollsAvailable = (user: UserState) => {
   return Math.max(0, isCurrentDay ? total - user.attemptCount : ATTEMPTS_LIMIT);
 };
 
-export const formatUserToPlace = (user: UserState) => {
+export const formatUserToPlace = (
+  user: UserState,
+  isFirstPlace: boolean = false,
+) => {
   const moreRolls = isMoreRollsAvailable(user);
   return (
-    `${decorateName(user.displayName, user.coins)} - ${user.coins}` +
+    `${decorateName(user.displayName, user.coins, isFirstPlace ? "👑" : undefined)} - ${user.coins}` +
     (moreRolls > 0
       ? ` (ещё ${plural(moreRolls, ["попытка", "попытки", "попыток"], true)})`
       : "")

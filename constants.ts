@@ -9,7 +9,7 @@ export const BOT_TOKEN = (() => {
   return token;
 })();
 
-export const DENOKV_HOST = process.env.DENO_KV_HOST ?? "http://localhost:4512";
+export const DENOKV_HOST = process.env.DENOKV_HOST ?? "http://localhost:4512";
 
 export const CURRENT_KEY = "busino-dev";
 

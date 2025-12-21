@@ -31,7 +31,11 @@ const getDecorator = (balance: number) => {
   return decorators[0][1];
 };
 
-export const decorateName = (name: string, balance: number) => {
-  const decorator = getDecorator(balance);
+export const decorateName = (
+  name: string,
+  balance: number,
+  customDecorator?: string,
+) => {
+  const decorator = customDecorator ?? getDecorator(balance);
   return `${decorator} ${name} ${decorator}`;
 };

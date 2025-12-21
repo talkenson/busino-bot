@@ -9,12 +9,8 @@ import horses from "./src/intents/horses.ts";
 import { getUserStateSafe } from "./src/helpers.ts";
 import { collectList, kv } from "./src/kv.ts";
 import type { UserState } from "./src/types.ts";
-import {
-  formatUserToPlace,
-  isMoreRollsAvailable,
-  plural,
-} from "./src/utils.ts";
-import { decorateName } from "./src/nameDecorators.ts";
+import { formatUserToPlace } from "./src/utils.ts";
+import { sendEvents } from "./src/report/reporter.ts";
 
 bot.command("__debug", async (ctx) => {
   await ctx.reply(
@@ -78,7 +74,9 @@ bot.command("renames", async (ctx) => {
 bot.command("top", async (ctx) => {
   const users = await kv.list<UserState>({ prefix: [CURRENT_KEY] });
 
-  const usersTop: UserState[] = [];
+  type UserWithId = UserState & { id: string };
+
+  const usersTop: UserWithId[] = [];
 
   const renames = Object.fromEntries(
     (await collectList(["renames"])).map(({ key, value }) => [key[1], value]),
@@ -88,6 +86,7 @@ bot.command("top", async (ctx) => {
     usersTop.push({
       ...user.value,
       displayName: renames[user.value.displayName] || user.value.displayName,
+      id: user.key[1].toString(),
     });
   }
 
@@ -95,7 +94,7 @@ bot.command("top", async (ctx) => {
 
   let place = 0;
   let lastBalance = usersTop[0].coins + 1;
-  let usersByPlace: [number, UserState[]][] = [];
+  let usersByPlace: [number, UserWithId[]][] = [];
   for (let i = 0; i < usersTop.length && place < 20; i++) {
     const user = usersTop[i];
     if (user.coins < lastBalance) {
@@ -106,13 +105,26 @@ bot.command("top", async (ctx) => {
     usersByPlace[place - 1][1].push(user);
   }
 
-  console.log(usersByPlace);
+  if (usersByPlace[0]) {
+    await sendEvents(
+      usersByPlace[0][1].map((user) => ({
+        event_type: "achievement",
+        payload: {
+          type: "first_place",
+          chat_id: ctx.chat.id,
+          user_id: user.id,
+          createdAt: Date.now(),
+        },
+      })),
+    );
+  }
 
-  const topStrings = usersByPlace.map(([place, users]) => {
+  const topStrings = usersByPlace.map(([place, users], i) => {
+    const isFirstPlace = i === 0;
     if (users.length === 1) {
-      return `${place}. ${formatUserToPlace(users[0])}`;
+      return `${place}. ${formatUserToPlace(users[0], isFirstPlace)}`;
     }
-    return `${place}.\n  - ${users.map((user) => formatUserToPlace(user)).join("\n  - ")}`;
+    return `${place}.\n  - ${users.map((user) => formatUserToPlace(user, isFirstPlace)).join("\n  - ")}`;
   });
 
   await ctx.reply([locales.topPlayers(), ...topStrings].join("\n"), {

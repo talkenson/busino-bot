@@ -6,6 +6,7 @@ import type { UserState } from "../types.ts";
 import { ADMINS, CURRENT_KEY, DICE_COST } from "../../constants.ts";
 import type { Message } from "grammy/types";
 import { locales } from "../locales.ts";
+import { sendEvent } from "../report/reporter.ts";
 
 export const getCodeKey = (id: string) => [`${CURRENT_KEY}-code-treasure`, id];
 
@@ -13,6 +14,7 @@ export type Code =
   | {
       active: true;
       issuedBy: number;
+      issuedAt: number;
       messageId?: number;
       chatId?: number;
     }
@@ -28,10 +30,23 @@ export default (bot: Bot) => {
 
     const codeText = crypto.randomUUID();
 
+    const issueDate = Date.now();
+
     const code = await kv.set(getCodeKey(codeText), {
       active: true,
       issuedBy: 0,
+      issuedAt: issueDate,
     } as Code);
+
+    await sendEvent({
+      event_type: "codegen",
+      payload: {
+        chat_id: ctx.chat.id,
+        user_id: userId,
+        code_text: codeText,
+        issued_at: issueDate,
+      },
+    });
 
     return await ctx.reply(codeText);
   });
@@ -39,30 +54,48 @@ export default (bot: Bot) => {
   bot.command("redeem", async (ctx) => {
     if (ctx.chat.type !== "private") {
       return await ctx.reply(
-        "Получить бесплатную крутку ты можешь отправив мне эту команду в личные сообщения 😄"
+        "Получить бесплатную крутку ты можешь отправив мне эту команду в личные сообщения 😄",
       );
-    }
-
-    const codeText = ctx.message?.text.split(/\s+/)[1];
-
-    if (!codeText || !uuidValidate(codeText)) {
-      return await ctx.reply(`Код недействителен`);
     }
 
     const userId = ctx.from?.id;
 
     if (!userId) return;
 
+    const codeText = ctx.message?.text.split(/\s+/)[1];
+
+    if (!codeText || !uuidValidate(codeText)) {
+      await sendEvent({
+        event_type: "redeem",
+        payload: {
+          type: "invalid",
+          chat_id: ctx.chat.id,
+          user_id: userId,
+          code_text: codeText,
+        },
+      });
+      return await ctx.reply(`Код недействителен`);
+    }
+
     const code = await kv.get<Code>(getCodeKey(codeText)).then(
       (state): Code =>
         state.value ?? {
           active: false,
-        }
+        },
     );
 
     if (code.active) {
       if (code.issuedBy === userId) {
         ctx.reply("Упс, а вот свой код обналичить нельзя 🥲");
+        await sendEvent({
+          event_type: "redeem",
+          payload: {
+            type: "self_redeem",
+            chat_id: ctx.chat.id,
+            user_id: userId,
+            code_text: codeText,
+          },
+        });
         return;
       }
 
@@ -72,7 +105,7 @@ export default (bot: Bot) => {
 
       if (!userState) {
         return await ctx.reply(
-          "Пока ты не сделаешь хотя бы одну крутку - ты не сможешь пользоваться чужими кодами 🥲"
+          "Пока ты не сделаешь хотя бы одну крутку - ты не сможешь пользоваться чужими кодами 🥲",
         );
       }
 
@@ -83,7 +116,7 @@ export default (bot: Bot) => {
           locales.freespinRedeemedQuote(),
           {
             parse_mode: "HTML",
-          }
+          },
         );
       }
 
@@ -105,10 +138,31 @@ export default (bot: Bot) => {
         .set(getUserKey(userId), nextUserState)
         .commit();
 
+      await sendEvent({
+        event_type: "redeem",
+        payload: {
+          type: "success",
+          chat_id: ctx.chat.id,
+          user_id: userId,
+          code_text: codeText,
+          redeem_interval: Date.now() - code.issuedAt,
+        },
+      });
+
       return await ctx.reply(
-        `Вот это скорость! У вас теперь есть еще одна крутка, и она будет действовать до полуночи`
+        `Вот это скорость! У вас теперь есть еще одна крутка, и она будет действовать до полуночи`,
       );
     }
+
+    await sendEvent({
+      event_type: "redeem",
+      payload: {
+        type: "already_redeemed",
+        chat_id: ctx.chat.id,
+        user_id: userId,
+        code_text: codeText,
+      },
+    });
 
     return await ctx.reply("Сорри, этот код уже кто-то успел активировать 🤯");
   });
@@ -117,17 +171,30 @@ export default (bot: Bot) => {
 export const createFreespinCode = async (userId: number) => {
   const codeText = crypto.randomUUID();
 
+  const issueDate = Date.now();
+
   await kv.set(getCodeKey(codeText), {
     active: true,
     issuedBy: userId,
+    issuedAt: issueDate,
   } as Code);
+
+  await sendEvent({
+    event_type: "codegen",
+    payload: {
+      chat_id: 0,
+      user_id: userId,
+      code_text: codeText,
+      issued_at: issueDate,
+    },
+  });
 
   return codeText;
 };
 
 export const linkFreespinCode = async (
   code: string,
-  message: Message.TextMessage
+  message: Message.TextMessage,
 ) => {
   const codeState = await kv
     .get<Code>(getCodeKey(code))

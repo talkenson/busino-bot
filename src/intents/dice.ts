@@ -15,6 +15,7 @@ import { locales } from "../locales.ts";
 import type { UserState } from "../types.ts";
 import { linkFreespinCode } from "./redeemCode.ts";
 import { isMoreRollsAvailable, plural } from "../utils.ts";
+import { sendEvent } from "../report/reporter.ts";
 
 export default (bot: Bot) =>
   bot.on(":dice", async (ctx) => {
@@ -24,19 +25,27 @@ export default (bot: Bot) =>
       // https://core.telegram.org/api/dice
       const values = [0, 2, 4].map((shift) => ((value - 1) >> shift) & 0b11);
 
+      const userId = ctx.from?.id;
+
+      if (!userId) return;
+
       const isForwarded = Boolean(ctx.update.message?.forward_origin);
 
       if (isForwarded) {
         await ctx.reply(locales.doNotCheat(), {
           reply_to_message_id: ctx.update.message?.message_id,
         });
+        await sendEvent({
+          event_type: "dice",
+          payload: {
+            type: "forwarded",
+            user_id: userId,
+            chat_id: ctx.chat?.id,
+            dice_value: value,
+          },
+        });
         return;
       }
-
-      const userId = ctx.from?.id;
-
-      if (!userId) return;
-
       const userState = await kv
         .get<UserState>(getUserKey(userId))
         .then(
@@ -67,6 +76,15 @@ export default (bot: Bot) =>
             parse_mode: "HTML",
           },
         );
+        await sendEvent({
+          event_type: "dice",
+          payload: {
+            type: "attempts_limit_reached",
+            chat_id: ctx.chat.id,
+            user_id: userId,
+            dice_value: value,
+          },
+        });
         return;
       }
 
@@ -80,6 +98,16 @@ export default (bot: Bot) =>
         await ctx.reply(locales.notEnoughCoins(fixedLoss), {
           reply_to_message_id: ctx.update.message?.message_id,
         });
+        await sendEvent({
+          event_type: "dice",
+          payload: {
+            type: "not_enough_coins",
+            chat_id: ctx.chat.id,
+            user_id: userId,
+            dice_value: value,
+            fixed_loss: fixedLoss,
+          },
+        });
         return;
       }
 
@@ -87,12 +115,13 @@ export default (bot: Bot) =>
 
       const prize = getPrize(maxFrequent, maxFrequency, rolls);
       const isWin = prize - fixedLoss > 0;
+      const attemptsCount = isCurrentDay ? userState.attemptCount + 1 : 1;
 
       const nextUserState: UserState = {
         ...userState,
         coins: userState.coins + prize - fixedLoss,
         lastDayUtc: currentDay.toMillis(),
-        attemptCount: isCurrentDay ? userState.attemptCount + 1 : 1,
+        attemptCount: attemptsCount,
         extraAttempts: isCurrentDay ? userState.extraAttempts : 0,
       };
 
@@ -129,5 +158,21 @@ export default (bot: Bot) =>
 
         linkFreespinCode(freespinCode, reply);
       }
+
+      await sendEvent({
+        event_type: "dice",
+        payload: {
+          type: "success",
+          chat_id: ctx.chat.id,
+          user_id: userId,
+          dice_value: value,
+          is_win: isWin,
+          prize: prize,
+          fixed_loss: fixedLoss,
+          attempts_left: moreRolls,
+          is_extra_attempt: isExtraAttempt,
+          attemptsCount,
+        },
+      });
     }
   });
