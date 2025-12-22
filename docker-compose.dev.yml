@@ -5,7 +5,7 @@ services:
       - "4512:4512"
     volumes:
       - ./data:/data
-    command: --sqlite-path /data/denokv.sqlite serve --access-token ${DENO_KV_ACCESS_TOKEN}
+    command: --sqlite-path /data/denokv.sqlite serve --access-token ${DENOKV_ACCESS_TOKEN}
     env_file:
       - .env
     init: true

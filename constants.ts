@@ -11,7 +11,7 @@ export const BOT_TOKEN = (() => {
 
 export const DENOKV_HOST = process.env.DENOKV_HOST ?? "http://localhost:4512";
 
-export const CURRENT_KEY = "busino-dev";
+export const CURRENT_KEY = Bun.env.CURRENT_KEY ?? "busino-dev";
 
 export const ATTEMPTS_LIMIT = parseInt(Bun.env.ATTEMPTS_LIMIT || "3", 10);
 
