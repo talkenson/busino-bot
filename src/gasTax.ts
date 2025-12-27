@@ -21,6 +21,25 @@ export const getGasTax = (tradeVolume: number) => {
   return roundValue(tradeVolume * GAS_DEFAULT * GAS_MODIFIER);
 };
 
+export const getBankTax = (bankAmount: number) => {
+  if (bankAmount < 70) {
+    return -2;
+  }
+  if (bankAmount < 120) {
+    return 0;
+  }
+  return roundValue(Math.max(4, Math.min(getGasTax(bankAmount), 25)) / 2);
+};
+
 if (import.meta.main) {
-  console.log(getGasTax(7));
+  console.log(getBankTax(1000));
+  console.log(getBankTax(700));
+  console.log(getBankTax(500));
+  console.log(getBankTax(430));
+  console.log(getBankTax(300));
+  console.log(getBankTax(200));
+  console.log(getBankTax(150));
+  console.log(getBankTax(120));
+  console.log(getBankTax(100));
+  console.log(getBankTax(70));
 }

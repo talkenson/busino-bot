@@ -18,6 +18,10 @@ export const locales = {
     ]);
   },
 
+  topPlayersFull() {
+    return "\n/top full - для показа всех";
+  },
+
   doNotCheat() {
     return getRandomFromArray([
       "Не пытайся меня обмануть! 😡",
@@ -67,7 +71,7 @@ export const locales = {
     const pluralizedLostAmount = plural(
       lostAmount - compensation,
       ["монету", "монеты", "монет"],
-      true
+      true,
     );
 
     return getRandomFromArray([
@@ -77,11 +81,22 @@ export const locales = {
     ]);
   },
 
+  bankTax(tax: number, days: number) {
+    if (tax === 0) {
+      return "\nНалог на ваши сбережения не был применен!";
+    }
+    if (days > 1) {
+      return `\nВы не крутили слоты уже ${plural(days, ["день", "дня", "дней"], true)}! Налог за это время составил ${plural(tax, ["монету", "монеты", "монет"], true)}!`;
+    }
+
+    return `\nНалог за сутки хранения составил ${plural(tax, ["монету", "монеты", "монет"], true)}!`;
+  },
+
   gasReminder(gasAmount: number) {
     const pluralizedCoins = plural(
       gasAmount,
       ["монету", "монеты", "монет"],
-      true
+      true,
     );
 
     return `<i>Кстати, за эту операцию сняли еще ${pluralizedCoins}</i>`;
@@ -101,7 +116,7 @@ export const locales = {
     const pluralizedCount = plural(
       stakesCount,
       ["ставка", "ставки", "ставок"],
-      true
+      true,
     );
 
     return `<b>На следующий забег стоит ${pluralizedCount}</b>`;

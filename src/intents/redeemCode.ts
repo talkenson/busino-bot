@@ -52,9 +52,16 @@ export default (bot: Bot) => {
   });
 
   bot.command("redeem", async (ctx) => {
+    if (!ctx.message) return;
+
     if (ctx.chat.type !== "private") {
       return await ctx.reply(
         "Получить бесплатную крутку ты можешь отправив мне эту команду в личные сообщения 😄",
+        {
+          reply_parameters: {
+            message_id: ctx.message?.message_id,
+          },
+        },
       );
     }
 

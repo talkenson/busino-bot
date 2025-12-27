@@ -1,9 +1,11 @@
 import { Bot } from "grammy";
 import { ATTEMPTS_LIMIT, CASINO_DICE, DICE_COST } from "../../constants.ts";
-import { getGasTax } from "../gasTax.ts";
+import { getBankTax, getGasTax } from "../gasTax.ts";
 import {
   DateTime,
   getCurrentDay,
+  getDateFromMillis,
+  getDaysWithoutRolls,
   getFreespinCode,
   getMaxFrequency,
   getPrize,
@@ -115,7 +117,26 @@ export default (bot: Bot) =>
 
       const prize = getPrize(maxFrequent, maxFrequency, rolls);
       const isWin = prize - fixedLoss > 0;
+      const daysWithoutRolls = getDaysWithoutRolls(
+        currentDay,
+        getDateFromMillis(userState.lastDayUtc),
+      );
       const attemptsCount = isCurrentDay ? userState.attemptCount + 1 : 1;
+
+      let tax = 0;
+      let taxText = "";
+
+      if (daysWithoutRolls > 0) {
+        let lastBalance = userState.coins;
+        console.log(daysWithoutRolls);
+        for (let i = 0; i < daysWithoutRolls; i++) {
+          const mod = 1 + (daysWithoutRolls - i) * 0.04;
+          const currTax = getBankTax(lastBalance * mod);
+          tax += currTax;
+          lastBalance -= currTax;
+        }
+        taxText = locales.bankTax(tax, daysWithoutRolls);
+      }
 
       const nextUserState: UserState = {
         ...userState,
@@ -139,13 +160,16 @@ export default (bot: Bot) =>
       const attemptsLeft =
         moreRolls > 0
           ? `(у Вас ещё ${plural(moreRolls, ["попытка", "попытки", "попыток"], true)})`
-          : "";
+          : "(у Вас больше не осталось попыток)";
 
       try {
-        await ctx.reply([result, yourBalance, attemptsLeft].join("\n"), {
-          reply_to_message_id: ctx.update.message?.message_id,
-          parse_mode: "HTML",
-        });
+        await ctx.reply(
+          [result, yourBalance, attemptsLeft, taxText].join("\n"),
+          {
+            reply_to_message_id: ctx.update.message?.message_id,
+            parse_mode: "HTML",
+          },
+        );
       } catch (error) {
         console.error("error on reply user", userId);
         return;
@@ -181,6 +205,7 @@ export default (bot: Bot) =>
           attempts_left: moreRolls,
           is_extra_attempt: isExtraAttempt,
           attemptsCount,
+          tax: tax,
         },
       });
 

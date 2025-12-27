@@ -10,7 +10,8 @@ export interface EventData {
 }
 
 export class ClickHouseReporter {
-  protected client: ClickHouseClient;
+  // @ts-ignore -- Без клиента инициализировать нельзя
+  protected client: ClickHouseClient = null;
   protected tableName: string;
   protected isEnabled: boolean;
   public readonly project = Bun.env.CLICKHOUSE_PROJECT ?? "fallback";
@@ -46,12 +47,15 @@ export class ClickHouseReporter {
   /**
    * Отправка одного события
    */
-  async reportEvent(event: EventData): Promise<void> {
+  async reportEvent(
+    event: EventData,
+    table: string = this.tableName,
+  ): Promise<void> {
     if (!this.isEnabled) return;
 
     try {
       await this.client.insert({
-        table: this.tableName,
+        table: table,
         values: [
           {
             event_type: event.event_type,
@@ -71,12 +75,15 @@ export class ClickHouseReporter {
   /**
    * Пакетная отправка событий
    */
-  async reportEvents(events: EventData[]): Promise<void> {
+  async reportEvents(
+    events: EventData[],
+    table: string = this.tableName,
+  ): Promise<void> {
     if (!this.isEnabled || events.length === 0) return;
 
     try {
       await this.client.insert({
-        table: this.tableName,
+        table: table,
         values: events.map((event) => ({
           event_type: event.event_type,
           project: this.project,
@@ -306,7 +313,10 @@ export const chReporter = new BufferedClickHouseReporter({
 // });
 
 // Экспорт утилитарной функции для быстрого использования
-export async function sendEvent(event: EventData): Promise<void> {
+export async function sendEvent(
+  event: EventData,
+  table?: string,
+): Promise<void> {
   const reporter = chReporter;
 
   const resEvent: EventData = {
@@ -316,10 +326,13 @@ export async function sendEvent(event: EventData): Promise<void> {
     ...event,
   };
 
-  await reporter.reportEvent(resEvent);
+  await reporter.reportEvent(resEvent, table);
 }
 
-export async function sendEvents(events: EventData[]): Promise<void> {
+export async function sendEvents(
+  events: EventData[],
+  table?: string,
+): Promise<void> {
   const reporter = chReporter;
 
   const resEvents: EventData[] = events.map((event) => ({
@@ -329,5 +342,5 @@ export async function sendEvents(events: EventData[]): Promise<void> {
     ...event,
   }));
 
-  await reporter.reportEvents(resEvents);
+  await reporter.reportEvents(resEvents, table);
 }

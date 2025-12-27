@@ -1,3 +1,5 @@
+process.env.DENO_KV_ACCESS_TOKEN = Bun.env.DENOKV_ACCESS_TOKEN;
+
 export const IS_PRODUCTION = Bun.env.IS_PRODUCTION === "true";
 
 export const BOT_TOKEN = (() => {

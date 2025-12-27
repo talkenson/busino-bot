@@ -6,7 +6,9 @@ import { locales } from "./src/locales.ts";
 import dice from "./src/intents/dice.ts";
 import redeemCode from "./src/intents/redeemCode.ts";
 import horses from "./src/intents/horses.ts";
-import { getUserStateSafe } from "./src/helpers.ts";
+import channel from "./src/intents/channel.ts";
+import chat from "./src/intents/chat.ts";
+import { getUserStateSafe, stripFirst } from "./src/helpers.ts";
 import { collectList, kv } from "./src/kv.ts";
 import type { UserState } from "./src/types.ts";
 import { formatUserToPlace } from "./src/utils.ts";
@@ -33,6 +35,8 @@ bot.command("help", async (ctx) => {
 });
 
 // init
+chat(bot);
+channel(bot);
 dice(bot);
 redeemCode(bot);
 horses(bot);
@@ -74,6 +78,15 @@ bot.command("renames", async (ctx) => {
 bot.command("top", async (ctx) => {
   const users = await kv.list<UserState>({ prefix: [CURRENT_KEY] });
 
+  let limit = 15;
+
+  if (ctx.message) {
+    const [action] = stripFirst(ctx.message.text).split(/\s+/);
+    if (action === "full") {
+      limit = 0;
+    }
+  }
+
   type UserWithId = UserState & { id: string };
 
   const usersTop: UserWithId[] = [];
@@ -95,7 +108,7 @@ bot.command("top", async (ctx) => {
   let place = 0;
   let lastBalance = usersTop[0].coins + 1;
   let usersByPlace: [number, UserWithId[]][] = [];
-  for (let i = 0; i < usersTop.length && place < 20; i++) {
+  for (let i = 0; i < usersTop.length && (place < limit || limit === 0); i++) {
     const user = usersTop[i];
     if (user.coins < lastBalance) {
       place++;
@@ -128,9 +141,16 @@ bot.command("top", async (ctx) => {
     return `${place}.\n  - ${users.map((user) => formatUserToPlace(user, isFirstPlace)).join("\n  - ")}`;
   });
 
-  await ctx.reply([locales.topPlayers(), ...topStrings].join("\n"), {
-    reply_to_message_id: ctx.update.message?.message_id,
-  });
+  await ctx.reply(
+    [
+      locales.topPlayers(),
+      ...topStrings,
+      limit === 0 ? "" : locales.topPlayersFull(),
+    ].join("\n"),
+    {
+      reply_to_message_id: ctx.update.message?.message_id,
+    },
+  );
 });
 
 bot.command("balance", async (ctx) => {

@@ -1,10 +1,10 @@
 import { match, P } from "ts-pattern";
-import { CURRENT_KEY, FREECODE_PROB } from "../constants.ts";
+import { ADMINS, CURRENT_KEY, FREECODE_PROB } from "../constants.ts";
 import type { UserState } from "./types.ts";
 import { createFreespinCode } from "./intents/redeemCode.ts";
 
 import { DateTime } from "luxon";
-import type { CommandContext, Context } from "grammy";
+import type { Bot, CommandContext, Context } from "grammy";
 import { kv } from "./kv.ts";
 
 export const initUserState = (displayName: string): UserState => ({
@@ -110,3 +110,53 @@ export const getCurrentDay = () => {
     millisecond: 0,
   });
 };
+
+export const getDaysWithoutRolls = (current: DateTime, last: DateTime) => {
+  return current.diff(last, "days").days;
+};
+
+export const getDateFromMillis = (millis: number) => {
+  return DateTime.fromMillis(millis).setZone("UTC+7");
+};
+
+export const isAdmin = async (
+  bot: Bot,
+  ctx: CommandContext<Context>,
+  requireOwner = false,
+) => {
+  const userId = ctx.from?.id;
+
+  if (!userId) return false;
+
+  const chatAdmins = [];
+
+  try {
+    const chatInfo = await bot.api.getChatAdministrators(ctx.chat.id);
+    chatAdmins.push(
+      ...chatInfo
+        .filter((user) => (requireOwner ? user.status === "creator" : true))
+        .map((admin) => admin.user.id),
+    );
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+
+  if (!chatAdmins.includes(userId)) return false;
+
+  return true;
+};
+
+if (import.meta.main) {
+  const id = parseInt(ADMINS[0]);
+  const userState = await kv.get<UserState>(getUserKey(id)).then((state) => {
+    return state.value ?? initUserState("baobab");
+  });
+  const nextUserState: UserState = {
+    ...userState,
+    // coins: userState.coins + 100,
+    attemptCount: 0,
+    lastDayUtc: getCurrentDay().minus({ days: 3 }).toMillis(),
+  };
+  await kv.set(getUserKey(id), nextUserState);
+}
