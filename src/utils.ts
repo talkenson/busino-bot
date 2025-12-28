@@ -25,8 +25,38 @@ export const getSafeNumber = (x: number): { safe: boolean; value: number } => {
   return { safe: true, value: x };
 };
 
+function shuffleArray<T>(_array: T[]): T[] {
+  let currentIndex = _array.length;
+
+  const array = [..._array];
+
+  while (currentIndex != 0) {
+    let randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex],
+      array[currentIndex],
+    ];
+  }
+
+  return array;
+}
+
 export const getRandomFromArray = <Type extends unknown>(arr: Type[]) =>
   arr[Math.floor(Math.random() * arr.length)];
+
+export const getSomeRandomFromArray = <Type extends unknown>(
+  arr: Type[],
+  count: number,
+) => {
+  const shuffled = shuffleArray([...arr]);
+
+  const start = Math.floor(Math.random() * (arr.length - count - 1));
+  const end = start + count;
+
+  return shuffled.slice(start, end);
+};
 
 export const isMoreRollsAvailable = (user: UserState) => {
   const isCurrentDay = getCurrentDay().toMillis() === user.lastDayUtc;

@@ -1,12 +1,20 @@
 import { validate as uuidValidate } from "uuid";
-import { Bot } from "grammy";
+import { Bot, Context, Composer } from "grammy";
+import {
+  type Conversation,
+  type ConversationFlavor,
+  conversations,
+  createConversation,
+} from "@grammyjs/conversations";
 import { kv } from "../kv.ts";
 import { getCurrentDay, getUserKey } from "../helpers.ts";
 import type { UserState } from "../types.ts";
 import { ADMINS, CURRENT_KEY, DICE_COST } from "../../constants.ts";
-import type { Message } from "grammy/types";
+import type { InlineKeyboardButton, Message } from "grammy/types";
 import { locales } from "../locales.ts";
 import { sendEvent } from "../report/reporter.ts";
+import { createCaptcha } from "../challenges/captcha.ts";
+import { plural } from "../utils.ts";
 
 export const getCodeKey = (id: string) => [`${CURRENT_KEY}-code-treasure`, id];
 
@@ -51,8 +59,8 @@ export default (bot: Bot) => {
     return await ctx.reply(codeText);
   });
 
-  bot.command("redeem", async (ctx) => {
-    if (!ctx.message) return;
+  async function redeemFlow(conversation: Conversation, ctx: Context) {
+    if (!ctx.message?.text || !ctx.chat) return;
 
     if (ctx.chat.type !== "private") {
       return await ctx.reply(
@@ -72,43 +80,51 @@ export default (bot: Bot) => {
     const codeText = ctx.message?.text.split(/\s+/)[1];
 
     if (!codeText || !uuidValidate(codeText)) {
-      await sendEvent({
-        event_type: "redeem",
-        payload: {
-          type: "invalid",
-          chat_id: ctx.chat.id,
-          user_id: userId,
-          code_text: codeText,
-        },
-      });
+      await conversation.external(() =>
+        sendEvent({
+          event_type: "redeem",
+          payload: {
+            type: "invalid",
+            chat_id: ctx.chat!.id,
+            user_id: userId,
+            code_text: codeText,
+          },
+        }),
+      );
       return await ctx.reply(`Код недействителен`);
     }
 
-    const code = await kv.get<Code>(getCodeKey(codeText)).then(
-      (state): Code =>
-        state.value ?? {
-          active: false,
-        },
+    const code = await conversation.external(() =>
+      kv.get<Code>(getCodeKey(codeText)).then(
+        (state): Code =>
+          state.value ?? {
+            active: false,
+          },
+      ),
     );
 
     if (code.active) {
       if (code.issuedBy === userId) {
         ctx.reply("Упс, а вот свой код обналичить нельзя 🥲");
-        await sendEvent({
-          event_type: "redeem",
-          payload: {
-            type: "self_redeem",
-            chat_id: ctx.chat.id,
-            user_id: userId,
-            code_text: codeText,
-          },
-        });
+        await conversation.external(() =>
+          sendEvent({
+            event_type: "redeem",
+            payload: {
+              type: "self_redeem",
+              chat_id: ctx.chat!.id,
+              user_id: userId,
+              code_text: codeText,
+            },
+          }),
+        );
         return;
       }
 
-      const userState = await kv
-        .get<UserState>(getUserKey(userId))
-        .then((state) => state.value ?? undefined);
+      const userState = await conversation.external(() =>
+        kv
+          .get<UserState>(getUserKey(userId))
+          .then((state) => state.value ?? undefined),
+      );
 
       if (!userState) {
         return await ctx.reply(
@@ -116,14 +132,94 @@ export default (bot: Bot) => {
         );
       }
 
-      if (code.chatId && code.messageId) {
-        bot.api.editMessageText(
-          code.chatId,
-          code.messageId,
-          locales.freespinRedeemedQuote(),
-          {
+      let captchaPassed = false;
+      let captchaAttempts = 0;
+      let captchaMessage: Message | undefined;
+      let captcha: ReturnType<typeof createCaptcha> | undefined;
+      const limit = 1;
+
+      while (!captchaPassed && captchaAttempts < limit) {
+        captcha = await conversation.external(() => createCaptcha());
+
+        const captchaText = `${captchaAttempts > 0 ? `Увы, неверно, у Вас осталось ${plural(limit - captchaAttempts, ["попытка", "попытки", "попыток"], true)}` : ""}
+<b>${captcha.pattern}</b>\nВыбери снизу самый подходящий смайлик`;
+        const keyboard = {
+          inline_keyboard: [
+            captcha.items.map((emoji, index) => {
+              return {
+                text: emoji,
+                callback_data: index.toString(),
+              };
+            }) as InlineKeyboardButton[],
+          ],
+        };
+
+        if (captchaMessage) {
+          const cm = await ctx.api.editMessageText(
+            captchaMessage.chat.id,
+            captchaMessage.message_id,
+            captchaText,
+            {
+              parse_mode: "HTML",
+              reply_markup: keyboard,
+            },
+          );
+          if (cm !== true) {
+            captchaMessage = cm;
+          }
+        } else {
+          captchaMessage = await ctx.reply(captchaText, {
             parse_mode: "HTML",
-          },
+            reply_markup: keyboard,
+          });
+        }
+
+        const cb = await conversation.waitFor("callback_query:data");
+
+        if (cb.callbackQuery.data === captcha.targetId.toString()) {
+          captchaPassed = true;
+        } else {
+          captchaAttempts++;
+          continue;
+        }
+      }
+
+      if (captchaMessage)
+        await ctx.api
+          .deleteMessage(captchaMessage.chat.id, captchaMessage.message_id)
+          .catch();
+
+      if (!captchaPassed) {
+        await conversation.external(() =>
+          sendEvent({
+            event_type: "redeem",
+            payload: {
+              type: "captcha_failed",
+              chat_id: ctx.chat!.id,
+              user_id: userId,
+              code_text: codeText,
+              captcha_pattern: captcha?.pattern,
+              captcha_target: captcha?.targetId,
+              captcha_items: captcha?.items,
+            },
+          }),
+        );
+
+        return await ctx.reply("Увы, неверно. Сделайте /redeem снова");
+      } else {
+        await conversation.external(() =>
+          sendEvent({
+            event_type: "redeem",
+            payload: {
+              type: "captcha_succeed",
+              chat_id: ctx.chat!.id,
+              user_id: userId,
+              code_text: codeText,
+              captcha_pattern: captcha?.pattern,
+              captcha_target: captcha?.targetId,
+              captcha_items: captcha?.items,
+            },
+          }),
         );
       }
 
@@ -139,40 +235,80 @@ export default (bot: Bot) => {
         // coins: userState.coins + DICE_COST,
       };
 
-      await kv
-        .atomic()
-        .delete(getCodeKey(codeText))
-        .set(getUserKey(userId), nextUserState)
-        .commit();
+      await conversation.external(() =>
+        kv
+          .atomic()
+          .delete(getCodeKey(codeText))
+          .set(getUserKey(userId), nextUserState)
+          .commit(),
+      );
 
-      await sendEvent({
-        event_type: "redeem",
-        payload: {
-          type: "success",
-          chat_id: ctx.chat.id,
-          user_id: userId,
-          code_text: codeText,
-          redeem_interval: Date.now() - code.issuedAt,
-        },
-      });
+      if (code.chatId && code.messageId) {
+        await bot.api.editMessageText(
+          code.chatId,
+          code.messageId,
+          locales.freespinRedeemedQuote(),
+          {
+            parse_mode: "HTML",
+          },
+        );
+      }
+
+      await conversation.external(() =>
+        sendEvent({
+          event_type: "redeem",
+          payload: {
+            type: "success",
+            chat_id: ctx.chat!.id,
+            user_id: userId,
+            code_text: codeText,
+            redeem_interval: Date.now() - code.issuedAt,
+          },
+        }),
+      );
 
       return await ctx.reply(
         `Вот это скорость! У вас теперь есть еще одна крутка, и она будет действовать до полуночи`,
       );
     }
 
-    await sendEvent({
-      event_type: "redeem",
-      payload: {
-        type: "already_redeemed",
-        chat_id: ctx.chat.id,
-        user_id: userId,
-        code_text: codeText,
-      },
-    });
+    await conversation.external(() =>
+      sendEvent({
+        event_type: "redeem",
+        payload: {
+          type: "already_redeemed",
+          chat_id: ctx.chat!.id,
+          user_id: userId,
+          code_text: codeText,
+        },
+      }),
+    );
 
     return await ctx.reply("Сорри, этот код уже кто-то успел активировать 🤯");
+  }
+
+  const composer = new Composer<ConversationFlavor<Context>>();
+
+  composer.use(
+    conversations({
+      onExit(id, ctx) {
+        ctx.reply("Вы отвечали слишком долго, используйте /redeem снова");
+      },
+    }),
+  );
+
+  composer.use(
+    createConversation(redeemFlow, {
+      maxMillisecondsToWait: 10_000,
+    }),
+  );
+
+  composer.command("redeem", async (ctx) => {
+    await ctx.conversation.enter("redeemFlow");
   });
+
+  // @ts-ignore -- Композер нужен только в этом контексте
+  bot.use(composer);
 };
 
 export const createFreespinCode = async (userId: number) => {
