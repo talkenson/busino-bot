@@ -305,11 +305,11 @@ function corruptString(word: string, getRandom: () => number): string {
     .join("");
 }
 
-export const createCaptcha = (uuid: string = v4()) => {
+export const createCaptcha = (uuid: string = v4(), count = 6) => {
   const key = uuidToFloat(uuid);
   const randomizer = createSeededRandom(key);
-  const items = getSomeRandomFromArray(CAPTCHA_ITEMS, 6, randomizer);
-  const targetId = key % 6;
+  const items = getSomeRandomFromArray(CAPTCHA_ITEMS, count, randomizer);
+  const targetId = key % count;
   const targetItem = items[targetId];
   const textsLen = targetItem[1].length;
   const targetText = targetItem[1][key % textsLen];

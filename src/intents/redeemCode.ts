@@ -9,7 +9,12 @@ import {
 import { kv } from "../kv.ts";
 import { getCurrentDay, getUserKey } from "../helpers.ts";
 import type { UserState } from "../types.ts";
-import { ADMINS, CURRENT_KEY, DICE_COST } from "../../constants.ts";
+import {
+  ADMINS,
+  CAPTCHA_ITEMS,
+  CURRENT_KEY,
+  DICE_COST,
+} from "../../constants.ts";
 import type { InlineKeyboardButton, Message } from "grammy/types";
 import { locales } from "../locales.ts";
 import { sendEvent } from "../report/reporter.ts";
@@ -139,19 +144,31 @@ export default (bot: Bot) => {
       const limit = 1;
 
       while (!captchaPassed && captchaAttempts < limit) {
-        captcha = await conversation.external(() => createCaptcha(codeText));
+        captcha = await conversation.external(() =>
+          createCaptcha(codeText, CAPTCHA_ITEMS),
+        );
 
         const captchaText = `${captchaAttempts > 0 ? `Увы, неверно, у Вас осталось ${plural(limit - captchaAttempts, ["попытка", "попытки", "попыток"], true)}` : ""}
 <b>${captcha.pattern}</b>\nВыбери снизу самый подходящий смайлик`;
+
+        const rows = Math.ceil(captcha.items.length / 5);
+        const splitAfter = Math.max(0, Math.ceil(captcha.items.length / rows));
+        const splittedData = [];
+        for (let i = 0; i < rows; i++) {
+          splittedData.push(
+            captcha.items
+              .slice(i * splitAfter, (i + 1) * splitAfter)
+              .map((emojiData) => {
+                return {
+                  text: emojiData.text,
+                  callback_data: emojiData.data.toString(),
+                };
+              }),
+          );
+        }
+
         const keyboard = {
-          inline_keyboard: [
-            captcha.items.map((emojiData) => {
-              return {
-                text: emojiData.text,
-                callback_data: emojiData.data.toString(),
-              };
-            }) as InlineKeyboardButton[],
-          ],
+          inline_keyboard: splittedData,
         };
 
         if (captchaMessage) {
@@ -188,6 +205,21 @@ export default (bot: Bot) => {
         await ctx.api
           .deleteMessage(captchaMessage.chat.id, captchaMessage.message_id)
           .catch();
+
+      const repeatedCode = await conversation.external(() =>
+        kv.get<Code>(getCodeKey(codeText)).then(
+          (state): Code =>
+            state.value ?? {
+              active: false,
+            },
+        ),
+      );
+
+      if (!repeatedCode.active) {
+        return await ctx.reply(
+          "Ойй 😬, кажется пока кто-то решал капчу – кодик уже уплыл! 😜",
+        );
+      }
 
       if (!captchaPassed) {
         await conversation.external(() =>
