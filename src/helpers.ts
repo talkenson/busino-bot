@@ -10,7 +10,7 @@ import { kv } from "./kv.ts";
 export const initUserState = (displayName: string): UserState => ({
   displayName,
   coins: 100,
-  lastDayUtc: 0,
+  lastDayUtc: getCurrentDay().toMillis(),
   attemptCount: 0,
   extraAttempts: 0,
 });
@@ -112,7 +112,7 @@ export const getCurrentDay = () => {
 };
 
 export const getDaysWithoutRolls = (current: DateTime, last: DateTime) => {
-  return current.diff(last, "days").days;
+  return Math.floor(current.diff(last, "days").days);
 };
 
 export const getDateFromMillis = (millis: number) => {
@@ -149,14 +149,4 @@ export const isAdmin = async (
 
 if (import.meta.main) {
   const id = parseInt(ADMINS[0]);
-  const userState = await kv.get<UserState>(getUserKey(id)).then((state) => {
-    return state.value ?? initUserState("baobab");
-  });
-  const nextUserState: UserState = {
-    ...userState,
-    // coins: userState.coins + 100,
-    attemptCount: 0,
-    lastDayUtc: getCurrentDay().minus({ days: 3 }).toMillis(),
-  };
-  await kv.set(getUserKey(id), nextUserState);
 }

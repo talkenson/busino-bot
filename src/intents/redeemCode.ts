@@ -139,16 +139,16 @@ export default (bot: Bot) => {
       const limit = 1;
 
       while (!captchaPassed && captchaAttempts < limit) {
-        captcha = await conversation.external(() => createCaptcha());
+        captcha = await conversation.external(() => createCaptcha(codeText));
 
         const captchaText = `${captchaAttempts > 0 ? `Увы, неверно, у Вас осталось ${plural(limit - captchaAttempts, ["попытка", "попытки", "попыток"], true)}` : ""}
 <b>${captcha.pattern}</b>\nВыбери снизу самый подходящий смайлик`;
         const keyboard = {
           inline_keyboard: [
-            captcha.items.map((emoji, index) => {
+            captcha.items.map((emojiData) => {
               return {
-                text: emoji,
-                callback_data: index.toString(),
+                text: emojiData.text,
+                callback_data: emojiData.data.toString(),
               };
             }) as InlineKeyboardButton[],
           ],
@@ -299,7 +299,7 @@ export default (bot: Bot) => {
 
   composer.use(
     createConversation(redeemFlow, {
-      maxMillisecondsToWait: 10_000,
+      maxMillisecondsToWait: 15_000,
     }),
   );
 

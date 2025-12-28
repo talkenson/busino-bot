@@ -94,7 +94,9 @@ export default (bot: Bot) =>
         isCurrentDay && userState.attemptCount >= ATTEMPTS_LIMIT;
 
       const gas = getGasTax(DICE_COST);
-      const fixedLoss = isExtraAttempt ? gas + 2 : DICE_COST + gas; // 2 = service comission for every extra attempt
+      const fixedLoss = DICE_COST + gas; // redeemomania
+      // isExtraAttempt ? gas + 2 : DICE_COST + gas  -- usual way
+      // 2 = service comission for every extra attempt
 
       if (userState.coins < fixedLoss) {
         await ctx.reply(locales.notEnoughCoins(fixedLoss), {
