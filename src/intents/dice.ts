@@ -177,7 +177,8 @@ export default (bot: Bot) =>
         return;
       }
 
-      const freespinCode = isNotPrivateChat && (await getFreespinCode(userId));
+      const freespinCode =
+        isNotPrivateChat && (await getFreespinCode(userId, ctx.chat.id));
       const freespinCodeIntergration =
         freespinCode && locales.freespinQuote(freespinCode);
 

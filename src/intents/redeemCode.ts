@@ -54,6 +54,7 @@ export default (bot: Bot) => {
     await sendEvent({
       event_type: "codegen",
       payload: {
+        type: "command",
         chat_id: ctx.chat.id,
         user_id: userId,
         code_text: codeText,
@@ -343,7 +344,7 @@ export default (bot: Bot) => {
   bot.use(composer);
 };
 
-export const createFreespinCode = async (userId: number) => {
+export const createFreespinCode = async (userId: number, chatId: number) => {
   const codeText = crypto.randomUUID();
 
   const issueDate = Date.now();
@@ -357,7 +358,8 @@ export const createFreespinCode = async (userId: number) => {
   await sendEvent({
     event_type: "codegen",
     payload: {
-      chat_id: 0,
+      type: "freespin",
+      chat_id: chatId,
       user_id: userId,
       code_text: codeText,
       issued_at: issueDate,
