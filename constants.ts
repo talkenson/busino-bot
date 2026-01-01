@@ -25,3 +25,7 @@ export const FREECODE_PROB = Number(Bun.env.FREECODE_PROB ?? 0.15);
 export const ADMINS = (Bun.env.ADMINS ?? "").split(",").filter((v) => v.length);
 
 export const CAPTCHA_ITEMS = Number(Bun.env.CAPTCHA_ITEMS ?? "5");
+
+export const DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP = Number(
+  Bun.env.DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP ?? "3",
+);

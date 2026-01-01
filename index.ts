@@ -1,5 +1,10 @@
 import { webhookCallback } from "grammy";
-import { ADMINS, CURRENT_KEY, IS_PRODUCTION } from "./constants.ts";
+import {
+  ADMINS,
+  CURRENT_KEY,
+  DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP,
+  IS_PRODUCTION,
+} from "./constants.ts";
 import { logStart } from "./src/general.ts";
 import { bot } from "./src/bot.ts";
 import { locales } from "./src/locales.ts";
@@ -8,7 +13,13 @@ import redeemCode from "./src/intents/redeemCode.ts";
 import horses from "./src/intents/horses.ts";
 import channel from "./src/intents/channel.ts";
 import chat from "./src/intents/chat.ts";
-import { getUserStateSafe, stripFirst } from "./src/helpers.ts";
+import {
+  getCurrentDay,
+  getDateFromMillis,
+  getDaysBetween,
+  getUserStateSafe,
+  stripFirst,
+} from "./src/helpers.ts";
 import { collectList, kv } from "./src/kv.ts";
 import type { UserState } from "./src/types.ts";
 import { formatUserToPlace } from "./src/utils.ts";
@@ -96,11 +107,26 @@ bot.command("top", async (ctx) => {
   );
 
   for await (const user of users) {
+    if (
+      getDaysBetween(
+        getCurrentDay(),
+        getDateFromMillis(user.value.lastDayUtc),
+      ) >= DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP
+    ) {
+      continue;
+    }
     usersTop.push({
       ...user.value,
       displayName: renames[user.value.displayName] || user.value.displayName,
       id: user.key[1].toString(),
     });
+  }
+
+  if (usersTop.length === 0) {
+    await ctx.reply(
+      "Опа, в топе никого! Похоже никто не крутил последнее время!",
+    );
+    return;
   }
 
   usersTop.sort((a, b) => b.coins - a.coins);
@@ -146,6 +172,7 @@ bot.command("top", async (ctx) => {
       locales.topPlayers(),
       ...topStrings,
       limit === 0 ? "" : locales.topPlayersFull(),
+      locales.hiddenReminder(),
     ].join("\n"),
     {
       reply_to_message_id: ctx.update.message?.message_id,
@@ -159,10 +186,21 @@ bot.command("balance", async (ctx) => {
 
   const user = await getUserStateSafe(ctx);
 
-  await ctx.reply(locales.yourBalance(user!.coins), {
-    reply_to_message_id: ctx.update.message?.message_id,
-    parse_mode: "HTML",
-  });
+  const isVisible =
+    user?.lastDayUtc &&
+    getDaysBetween(getCurrentDay(), getDateFromMillis(user.lastDayUtc)) <
+      DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP;
+
+  await ctx.reply(
+    [
+      locales.yourBalance(user!.coins),
+      isVisible ? "" : locales.yourBalanceHidden(),
+    ].join("\n"),
+    {
+      reply_to_message_id: ctx.update.message?.message_id,
+      parse_mode: "HTML",
+    },
+  );
 });
 
 bot.errorHandler = (error) => {

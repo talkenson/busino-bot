@@ -2,10 +2,9 @@ import { Bot } from "grammy";
 import { ATTEMPTS_LIMIT, CASINO_DICE, DICE_COST } from "../../constants.ts";
 import { getBankTax, getGasTax } from "../gasTax.ts";
 import {
-  DateTime,
   getCurrentDay,
   getDateFromMillis,
-  getDaysWithoutRolls,
+  getDaysBetween,
   getFreespinCode,
   getMaxFrequency,
   getPrize,
@@ -119,7 +118,7 @@ export default (bot: Bot) =>
 
       const prize = getPrize(maxFrequent, maxFrequency, rolls);
       const isWin = prize - fixedLoss > 0;
-      const daysWithoutRolls = getDaysWithoutRolls(
+      const daysWithoutRolls = getDaysBetween(
         currentDay,
         getDateFromMillis(userState.lastDayUtc),
       );
@@ -130,7 +129,6 @@ export default (bot: Bot) =>
 
       if (daysWithoutRolls > 0) {
         let lastBalance = userState.coins;
-        console.log(daysWithoutRolls);
         for (let i = 0; i < daysWithoutRolls; i++) {
           const mod = 1 + (daysWithoutRolls - i) * 0.04;
           const currTax = getBankTax(lastBalance * mod);

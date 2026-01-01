@@ -56,9 +56,9 @@ export const getPrize = (
     .with([P._, 2], () => 4 + getRollsSum(rolls))
     .otherwise(() => getRollsSum(rolls) - 3);
 
-export const getFreespinCode = async (userId: number) => {
+export const getFreespinCode = async (userId: number, chatId: number) => {
   if (Math.random() <= FREECODE_PROB) {
-    const code = await createFreespinCode(userId);
+    const code = await createFreespinCode(userId, chatId);
     return code;
   }
   return undefined;
@@ -111,7 +111,7 @@ export const getCurrentDay = () => {
   });
 };
 
-export const getDaysWithoutRolls = (current: DateTime, last: DateTime) => {
+export const getDaysBetween = (current: DateTime, last: DateTime) => {
   return Math.floor(current.diff(last, "days").days);
 };
 

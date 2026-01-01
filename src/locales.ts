@@ -1,5 +1,6 @@
 import { getRandomFromArray, getSafeNumber, plural } from "./utils.ts";
 import { round } from "./generators/utils.ts";
+import { DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP } from "../constants.ts";
 
 export const locales = {
   horsesHelp() {
@@ -106,6 +107,14 @@ export const locales = {
     const pluralizedCoins = plural(coins, ["монета", "монеты", "монет"], true);
 
     return `Твой баланс: <b>${pluralizedCoins}</b>`;
+  },
+
+  yourBalanceHidden() {
+    return `Вы не крутили уже ${plural(DAYS_OF_INACTIVITY_TO_HIDE_IN_TOP, ["день", "дня", "дней"], true)}, поэтому скрыты из топа.\nПокрутите хотя бы раз чтобы снова попасть в топ!`;
+  },
+
+  hiddenReminder() {
+    return "Если Вам кажется что Вы должны быть в топе, а Вас там нет – проверьте что Вы крутили последнее время, или нажмите /balance";
   },
 
   stakesCreated(stakesCount: number) {
