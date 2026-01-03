@@ -2,8 +2,6 @@ import { type KvKey, openKv } from "@deno/kv";
 import { CURRENT_KEY, DENOKV_HOST } from "../constants.ts";
 import { serialize as encodeV8, deserialize as decodeV8 } from "v8";
 import type { UserState } from "./types.ts";
-import { getUserKey } from "./helpers.ts";
-
 export const kv = await openKv(DENOKV_HOST, { encodeV8, decodeV8 });
 
 export const collectList = async <ReturnType extends unknown>(key: KvKey) => {
