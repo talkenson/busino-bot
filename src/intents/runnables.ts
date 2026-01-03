@@ -149,6 +149,16 @@ ${userState.coins}${amount >= 0 ? `+${amount}` : amount} -> ${nextUserState.coin
           forUserId: forUserId,
         },
       });
+    } else if (action === "getUser") {
+      const forUserId = Number(args[0]);
+
+      const userData = await kv.get<UserState>(getUserKey(forUserId));
+
+      await ctx.reply(JSON.stringify(userData, null, 2), {
+        reply_parameters: {
+          message_id: ctx.message?.message_id,
+        },
+      });
     } else {
       await ctx.reply(
         "available: \n\
