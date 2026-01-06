@@ -45,16 +45,27 @@ export const getPrize = (
   maxFrequent: number,
   maxFrequency: number,
   rolls: number[],
+  isRedeem: boolean = false,
 ) =>
-  match([STICKERS[maxFrequent], maxFrequency])
-    .with(["seven", 3], () => 77)
-    .with(["lemon", 3], () => 30)
-    .with(["cherry", 3], () => 23)
-    .with(["bar", 3], () => 21)
-    .with(["seven", 2], () => 10 + getRollsSum(rolls))
-    .with(["lemon", 2], () => 6 + getRollsSum(rolls))
-    .with([P._, 2], () => 4 + getRollsSum(rolls))
-    .otherwise(() => getRollsSum(rolls) - 3);
+  isRedeem
+    ? match([STICKERS[maxFrequent], maxFrequency])
+        .with(["seven", 3], () => 141)
+        .with(["lemon", 3], () => 70)
+        .with(["cherry", 3], () => 50)
+        .with(["bar", 3], () => 45)
+        .with(["seven", 2], () => 20 + getRollsSum(rolls))
+        .with(["lemon", 2], () => 15 + getRollsSum(rolls))
+        .with([P._, 2], () => 10 + getRollsSum(rolls))
+        .otherwise(() => 1)
+    : match([STICKERS[maxFrequent], maxFrequency])
+        .with(["seven", 3], () => 77)
+        .with(["lemon", 3], () => 30)
+        .with(["cherry", 3], () => 23)
+        .with(["bar", 3], () => 21)
+        .with(["seven", 2], () => 10 + getRollsSum(rolls))
+        .with(["lemon", 2], () => 6 + getRollsSum(rolls))
+        .with([P._, 2], () => 4 + getRollsSum(rolls))
+        .otherwise(() => getRollsSum(rolls) - 3);
 
 export const getFreespinCode = async (userId: number, chatId: number) => {
   if (Math.random() <= FREECODE_PROB) {

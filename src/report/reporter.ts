@@ -306,6 +306,7 @@ export const chReporter = new BufferedClickHouseReporter({
   ...clickhouseConfig,
   bufferSize: 10,
   flushIntervalMs: 3000,
+  enable: Bun.env.CLICKHOUSE_ENABLED !== "false",
 });
 
 // export const chReporter = new ClickHouseReporter({

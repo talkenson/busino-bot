@@ -93,7 +93,7 @@ export default (bot: Bot) =>
         isCurrentDay && userState.attemptCount >= ATTEMPTS_LIMIT;
 
       const gas = getGasTax(DICE_COST);
-      const fixedLoss = DICE_COST + gas; // redeemomania
+      const fixedLoss = isExtraAttempt ? 30 : DICE_COST + gas; // redeemomania
       // isExtraAttempt ? gas + 2 : DICE_COST + gas  -- usual way
       // 2 = service comission for every extra attempt
 
@@ -116,7 +116,7 @@ export default (bot: Bot) =>
 
       const [maxFrequent, maxFrequency, rolls] = getMaxFrequency(values);
 
-      const prize = getPrize(maxFrequent, maxFrequency, rolls);
+      const prize = getPrize(maxFrequent, maxFrequency, rolls, isExtraAttempt);
       const isWin = prize - fixedLoss > 0;
       const daysWithoutRolls = getDaysBetween(
         currentDay,
