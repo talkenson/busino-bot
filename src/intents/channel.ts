@@ -42,11 +42,33 @@ export default (bot: Bot) => {
     }
 
     allowedChats.forEach(async (chatId) => {
-      await bot.api.forwardMessage(
-        chatId,
-        ctx.chat.id,
-        ctx.channelPost.message_id,
-      );
+      try {
+        await bot.api.forwardMessage(
+          chatId,
+          ctx.chat.id,
+          ctx.channelPost.message_id,
+        );
+        sendEvent({
+          event_type: "forward_channel_post",
+          payload: {
+            post: ctx.channelPost.message_id,
+            chat_id: ctx.chat.id,
+            status: true,
+            error: "",
+          },
+        });
+      } catch (e) {
+        // console.error(e);
+        sendEvent({
+          event_type: "forward_channel_post",
+          payload: {
+            post: ctx.channelPost.message_id,
+            chat_id: ctx.chat.id,
+            status: false,
+            error: e?.toString() || e || "Unknown error",
+          },
+        });
+      }
     });
   });
 };

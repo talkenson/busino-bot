@@ -8,6 +8,7 @@ import horses from "./src/intents/horses.ts";
 import channel from "./src/intents/channel.ts";
 import chat from "./src/intents/chat.ts";
 import runnables from "./src/intents/runnables.ts";
+import { sendEvent } from "./src/report/reporter.ts";
 
 // init
 runnables(bot);
@@ -20,6 +21,16 @@ horses(bot);
 
 bot.errorHandler = (error) => {
   console.error("Error happened: ", error);
+
+  sendEvent({
+    event_type: "error_handler",
+    payload: {
+      error: error.message,
+      stack: error.stack,
+      cause: error.cause,
+      e: error.error,
+    },
+  });
 };
 
 logStart();
