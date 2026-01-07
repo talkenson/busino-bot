@@ -49,14 +49,14 @@ export const getPrize = (
 ) =>
   isRedeem
     ? match([STICKERS[maxFrequent], maxFrequency])
-        .with(["seven", 3], () => 141)
+        .with(["seven", 3], () => 150)
         .with(["lemon", 3], () => 70)
         .with(["cherry", 3], () => 50)
         .with(["bar", 3], () => 45)
-        .with(["seven", 2], () => 20 + getRollsSum(rolls))
-        .with(["lemon", 2], () => 15 + getRollsSum(rolls))
-        .with([P._, 2], () => 10 + getRollsSum(rolls))
-        .otherwise(() => 1)
+        .with(["seven", 2], () => 30 + getRollsSum(rolls) * 4)
+        .with(["lemon", 2], () => 20 + getRollsSum(rolls) * 4)
+        .with([P._, 2], () => 15 + getRollsSum(rolls) * 4)
+        .otherwise(() => getRollsSum(rolls))
     : match([STICKERS[maxFrequent], maxFrequency])
         .with(["seven", 3], () => 77)
         .with(["lemon", 3], () => 30)
@@ -159,5 +159,16 @@ export const isAdmin = async (
 };
 
 if (import.meta.main) {
-  const id = parseInt(ADMINS[0]);
+  let sum = 0;
+
+  for (let i = 1; i < 65; i++) {
+    const values = [0, 2, 4].map((shift) => ((i - 1) >> shift) & 0b11);
+    const [maxFrequent, maxFrequency, rolls] = getMaxFrequency(values);
+    const res = getPrize(maxFrequent, maxFrequency, rolls, true) - 30;
+    console.log(i, values.toString(), "=", res);
+
+    sum += res;
+  }
+
+  console.log("sum", sum, sum / 64);
 }
